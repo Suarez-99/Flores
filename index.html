@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compilando un regalo 💛</title>
+<meta name="theme-color" content="#050807">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%8C%BB%3C/text%3E%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin:0; min-height:100%; }
+  body {
+    background:#050807; color:#d9ffe5; font-family:"Courier New",monospace;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  .scanlines {
+    position:fixed; inset:0; pointer-events:none; opacity:.08;
+    background:repeating-linear-gradient(to bottom, transparent 0 3px, #8affad 4px);
+    z-index:20;
+  }
+  .glow { position:fixed; width:500px; height:500px; border-radius:50%;
+    background:#00ff6640; filter:blur(100px); opacity:.25; }
+  .terminal {
+    width:min(900px,92vw); height:min(700px,94vh); background:#07100b;
+    border:1px solid #22ff6680; border-radius:14px; box-shadow:0 0 45px #00ff6630;
+    overflow:hidden; position:relative;
+  }
+  .bar { height:42px; background:#101814; display:flex; align-items:center; padding:0 15px; gap:8px; }
+  .dot { width:12px;height:12px;border-radius:50%; background:#ff5f56; }
+  .dot.y { background:#ffbd2e; }.dot.g { background:#27c93f; }
+  .title { flex:1;text-align:center;color:#8fa996;font-size:13px;margin-right:45px; }
+  .screen { padding:18px 28px; height:calc(100% - 42px); overflow:auto; }
+  .prompt { color:#55ff88; }
+  #terminalText { line-height:1.65; white-space:pre-wrap; font-size:clamp(13px,2vw,16px); }
+  .cursor { display:inline-block;width:9px;height:1em;background:#55ff88;vertical-align:-2px;animation:blink .7s infinite; }
+  @keyframes blink {50%{opacity:0}}
+  .progress { margin:25px 0; color:#70ff98; }
+  .progressbar { border:1px solid #38ff75; padding:3px; width:min(650px,100%); }
+  .fill { height:16px;width:0;background:#39ff72;box-shadow:0 0 15px #39ff72; transition:width .12s; }
+  .hidden { display:none!important; }
+  .gift { min-height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; animation:appear 1.5s ease; }
+  @keyframes appear {from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+  h1 { font-size:clamp(26px,5.2vw,52px); margin:6px 0; color:#ffe94a;
+      text-shadow:0 0 12px #ffd900,0 0 35px #ffbd00; }
+  .message { max-width:680px; font-family:Arial,sans-serif; font-size:clamp(15px,2.4vw,20px); line-height:1.5; margin:8px 0;color:#fff6bf; }
+  .bouquet { width:min(270px,62vw); margin:0 0 4px; }
+  .ramo { width:100%; height:auto; display:block; overflow:visible; filter:drop-shadow(0 0 14px #ffd90066); }
+  .mecer { transform-box:view-box; transform-origin:180px 250px; animation:mecer 3.2s ease-in-out infinite; }
+  @keyframes mecer { 0%,100%{transform:rotate(-1.6deg)} 50%{transform:rotate(1.6deg)} }
+  #petalos { position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:5; }
+  .petalo { position:absolute; top:-30px; width:11px; height:18px; border-radius:60% 60% 60% 60% / 80% 80% 40% 40%;
+    background:#ffd83d; opacity:.85; animation:caer linear infinite; }
+  @keyframes caer { to { transform:translate(var(--dx), 110vh) rotate(var(--rot)); opacity:.15; } }
+  @media (prefers-reduced-motion: reduce) { .mecer, .petalo { animation:none; } }
+  .prompt { margin-bottom:6px; }
+  .gap { display:block; height:.55em; }
+  @media (max-height:720px) { .bouquet { width:190px; } h1 { font-size:clamp(24px,4.4vw,40px); } .message { font-size:15px; } }
+  .heart { color:#ff6b91; text-shadow:0 0 15px #ff326b; }
+  button { margin:14px 0 6px; padding:13px 22px; border:1px solid #ffe94a; background:#151207; color:#ffe94a;
+    border-radius:8px; font:bold 15px monospace; cursor:pointer; box-shadow:0 0 15px #ffd90030; }
+  button:hover { background:#ffe94a;color:#111; }
+  #fireworks { position:fixed; inset:0; pointer-events:none; z-index:10; }
+  .particle { position:absolute; width:7px;height:7px;border-radius:50%; background:#ffd83d; box-shadow:0 0 12px #ffd83d; animation:explode 1.2s ease-out forwards; }
+  @keyframes explode {to{transform:translate(var(--x),var(--y));opacity:0}}
+  .signature { margin-top:18px;color:#9deeb2;font-size:14px; }
+</style>
+</head>
+<body>
+<div class="glow"></div><div class="scanlines"></div><div id="fireworks"></div><div id="petalos"></div>
+
+<main class="terminal">
+  <div class="bar">
+    <span class="dot"></span><span class="dot y"></span><span class="dot g"></span>
+    <div class="title">esteban@love-machine: ~/regalo</div>
+  </div>
+  <section class="screen">
+    <div id="boot">
+      <div id="terminalText"></div><span class="cursor"></span>
+      <div id="progress" class="progress hidden">
+        <div class="progressbar"><div id="fill" class="fill"></div></div>
+        <div id="percent">0%</div>
+      </div>
+    </div>
+
+    <div id="gift" class="gift hidden">
+      <div class="prompt">$ ./regalo --ejecutar</div>
+      <div class="bouquet">
+    <svg class="ramo" viewBox="0 0 360 275" role="img" aria-label="Ramo de flores amarillas">
+      <defs>
+      <symbol id="girasol" viewBox="-50 -50 100 100">
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(0.0)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(22.5)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(45.0)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(67.5)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(90.0)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(112.5)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(135.0)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(157.5)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(180.0)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(202.5)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(225.0)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(247.5)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(270.0)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(292.5)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(315.0)"/>
+      <ellipse cx="0" cy="-34" rx="6.5" ry="15" fill="#f5b800" transform="rotate(337.5)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(11.2)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(33.8)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(56.2)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(78.8)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(101.2)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(123.8)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(146.2)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(168.8)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(191.2)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(213.8)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(236.2)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(258.8)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(281.2)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(303.8)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(326.2)"/>
+      <ellipse cx="0" cy="-31" rx="6.5" ry="14" fill="#ffd60a" transform="rotate(348.8)"/>
+      <circle r="19" fill="#7a4a12"/>
+      <circle r="15" fill="#5a3410"/>
+      <circle cx="-1.5" cy="1.4" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="0.3" cy="-2.9" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="2.2" cy="2.8" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-4.1" cy="-0.7" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="3.9" cy="-2.5" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-1.3" cy="4.9" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-2.5" cy="-4.8" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="5.5" cy="2.0" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-5.7" cy="2.4" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="2.8" cy="-5.9" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="2.0" cy="6.5" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-6.2" cy="-3.6" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="7.3" cy="-1.6" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-4.4" cy="6.3" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-1.0" cy="-7.9" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="6.3" cy="5.3" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-8.5" cy="0.4" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="6.2" cy="-6.2" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-0.4" cy="9.0" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-5.9" cy="-7.1" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="9.4" cy="1.3" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-7.9" cy="5.5" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="2.2" cy="-9.7" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="5.0" cy="8.8" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-9.8" cy="-3.1" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="9.6" cy="-4.4" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-4.1" cy="9.9" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-3.7" cy="-10.3" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="9.8" cy="5.2" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-10.9" cy="2.9" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="6.2" cy="-9.7" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="2.0" cy="11.5" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-9.4" cy="-7.3" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="12.0" cy="-1.0" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-8.3" cy="9.0" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="0.1" cy="-12.4" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="8.4" cy="9.3" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-12.7" cy="-1.2" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="10.3" cy="-7.8" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-2.3" cy="12.8" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-7.0" cy="-11.2" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="12.9" cy="3.5" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-12.0" cy="6.2" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="4.8" cy="-12.8" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="5.2" cy="12.8" r="1.3" fill="#2f1a08" opacity=".55"/><circle cx="-12.7" cy="-6.0" r="1.3" fill="#2f1a08" opacity=".55"/>
+    </symbol>
+      <symbol id="margarita" viewBox="-50 -50 100 100">
+      <ellipse cx="0" cy="-30" rx="10" ry="19" fill="#ffe14d" transform="rotate(0.0)"/>
+      <ellipse cx="0" cy="-30" rx="10" ry="19" fill="#ffe14d" transform="rotate(36.0)"/>
+      <ellipse cx="0" cy="-30" rx="10" ry="19" fill="#ffe14d" transform="rotate(72.0)"/>
+      <ellipse cx="0" cy="-30" rx="10" ry="19" fill="#ffe14d" transform="rotate(108.0)"/>
+      <ellipse cx="0" cy="-30" rx="10" ry="19" fill="#ffe14d" transform="rotate(144.0)"/>
+      <ellipse cx="0" cy="-30" rx="10" ry="19" fill="#ffe14d" transform="rotate(180.0)"/>
+      <ellipse cx="0" cy="-30" rx="10" ry="19" fill="#ffe14d" transform="rotate(216.0)"/>
+      <ellipse cx="0" cy="-30" rx="10" ry="19" fill="#ffe14d" transform="rotate(252.0)"/>
+      <ellipse cx="0" cy="-30" rx="10" ry="19" fill="#ffe14d" transform="rotate(288.0)"/>
+      <ellipse cx="0" cy="-30" rx="10" ry="19" fill="#ffe14d" transform="rotate(324.0)"/>
+      <ellipse cx="0" cy="-27" rx="9" ry="16" fill="#fff08a" transform="rotate(18.0)"/>
+      <ellipse cx="0" cy="-27" rx="9" ry="16" fill="#fff08a" transform="rotate(54.0)"/>
+      <ellipse cx="0" cy="-27" rx="9" ry="16" fill="#fff08a" transform="rotate(90.0)"/>
+      <ellipse cx="0" cy="-27" rx="9" ry="16" fill="#fff08a" transform="rotate(126.0)"/>
+      <ellipse cx="0" cy="-27" rx="9" ry="16" fill="#fff08a" transform="rotate(162.0)"/>
+      <ellipse cx="0" cy="-27" rx="9" ry="16" fill="#fff08a" transform="rotate(198.0)"/>
+      <ellipse cx="0" cy="-27" rx="9" ry="16" fill="#fff08a" transform="rotate(234.0)"/>
+      <ellipse cx="0" cy="-27" rx="9" ry="16" fill="#fff08a" transform="rotate(270.0)"/>
+      <ellipse cx="0" cy="-27" rx="9" ry="16" fill="#fff08a" transform="rotate(306.0)"/>
+      <ellipse cx="0" cy="-27" rx="9" ry="16" fill="#fff08a" transform="rotate(342.0)"/>
+      <circle r="12" fill="#ff9d00"/>
+      <circle r="8" fill="#ffb627"/>
+      <circle cx="-2.5" cy="-2.5" r="2.5" fill="#ffd98a" opacity=".8"/>
+    </symbol>
+      </defs>
+      <g fill="#4fa64a">
+      <ellipse cx="128" cy="205" rx="26" ry="9" transform="rotate(-28 128 205)"/>
+      <ellipse cx="232" cy="205" rx="26" ry="9" transform="rotate(28 232 205)"/>
+      <ellipse cx="150" cy="170" rx="20" ry="7" transform="rotate(-50 150 170)" fill="#3f8f3a"/>
+      <ellipse cx="210" cy="170" rx="20" ry="7" transform="rotate(50 210 170)" fill="#3f8f3a"/>
+    </g>
+            <g class="mecer" style="animation-delay:0.0s">
+      <path d="M180 250 C 158 205 92 175 68 100" fill="none" stroke="#3f8f3a" stroke-width="6" stroke-linecap="round"/>
+      <use href="#girasol" x="22.0" y="54.0" width="92" height="92" class="cabeza"/>
+    </g>
+      <g class="mecer" style="animation-delay:0.35s">
+      <path d="M180 250 C 168 195 140 130 128 58" fill="none" stroke="#3f8f3a" stroke-width="6" stroke-linecap="round"/>
+      <use href="#margarita" x="76.0" y="6.0" width="104" height="104" class="cabeza"/>
+    </g>
+      <g class="mecer" style="animation-delay:0.7s">
+      <path d="M180 250 C 180 190 186 120 188 40" fill="none" stroke="#3f8f3a" stroke-width="6" stroke-linecap="round"/>
+      <use href="#girasol" x="130.0" y="-18.0" width="116" height="116" class="cabeza"/>
+    </g>
+      <g class="mecer" style="animation-delay:1.05s">
+      <path d="M180 250 C 196 195 232 130 248 62" fill="none" stroke="#3f8f3a" stroke-width="6" stroke-linecap="round"/>
+      <use href="#margarita" x="198.0" y="12.0" width="100" height="100" class="cabeza"/>
+    </g>
+      <g class="mecer" style="animation-delay:1.4s">
+      <path d="M180 250 C 204 205 272 178 300 104" fill="none" stroke="#3f8f3a" stroke-width="6" stroke-linecap="round"/>
+      <use href="#girasol" x="255.0" y="59.0" width="90" height="90" class="cabeza"/>
+    </g>
+      <g>
+      <path d="M180 232 L150 216 Q142 232 150 248 Z" fill="#ff6b91"/>
+      <path d="M180 232 L210 216 Q218 232 210 248 Z" fill="#ff6b91"/>
+      <path d="M180 236 L166 262 L176 258 L180 268 Z" fill="#e0517a"/>
+      <path d="M180 236 L194 262 L184 258 L180 268 Z" fill="#e0517a"/>
+      <circle cx="180" cy="232" r="9" fill="#ff8fab"/>
+    </g>
+    </svg>
+      </div>
+      <h1>¡Te amo, Giuliana! 💛</h1>
+      <p class="message">
+        Después de muchas líneas de código, encontré una función que no necesita explicación:
+        <span class="gap"></span>
+        <strong>hacerte sonreír("Giuliana");</strong>
+        <span class="gap"></span>
+        Así que este programa devuelve:
+        <br>
+        <span class="heart">❤️</span> vos + yo + muchos momentos juntos <span class="heart">❤️</span>
+      </p>
+      <div class="signature">return "Para vos, Giuliana, mi amor 🌻";</div>
+      <button onclick="restart()">↻ Ejecutar de nuevo</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const lines = [
+  "> Iniciando sistema...",
+  "> Cargando módulo: recuerdos.exe",
+  "> Buscando a la persona más especial...",
+  "> Persona encontrada: GIULIANA ❤️",
+  "",
+  "> Analizando sentimientos...",
+  "  amor: ∞",
+  "  felicidad: ∞",
+  "  ganas_de_abrazarte: true",
+  "",
+  "> Compilando regalo...",
+];
+
+let i=0, char=0, text="", timer;
+const out=document.getElementById("terminalText");
+const progress=document.getElementById("progress");
+const fill=document.getElementById("fill");
+const percent=document.getElementById("percent");
+
+function typeLine(){
+  if(i>=lines.length){ startProgress(); return; }
+  if(char<lines[i].length){
+    text += lines[i][char++];
+    out.textContent=text;
+    timer=setTimeout(typeLine, 24);
+  } else {
+    text+="\n"; i++; char=0;
+    timer=setTimeout(typeLine, 150);
+  }
+}
+function startProgress(){
+  progress.classList.remove("hidden");
+  let n=0;
+  const p=setInterval(()=>{
+    n += Math.floor(Math.random()*7)+3;
+    if(n>=100){n=100;clearInterval(p);setTimeout(showGift,500);}
+    fill.style.width=n+"%"; percent.textContent=n+"%";
+  },110);
+}
+function showGift(){
+  document.getElementById("boot").classList.add("hidden");
+  document.getElementById("gift").classList.remove("hidden");
+  fireworks();
+  petalos();
+}
+function petalos(){
+  const box=document.getElementById("petalos");
+  box.textContent="";
+  const colores=["#ffd83d","#ffe14d","#f5b800","#fff08a"];
+  for(let k=0;k<22;k++){
+    const p=document.createElement("span"); p.className="petalo";
+    p.style.left=Math.random()*100+"vw";
+    p.style.background=colores[k%colores.length];
+    p.style.animationDuration=(6+Math.random()*6)+"s";
+    p.style.animationDelay=(-Math.random()*8)+"s";
+    p.style.setProperty("--dx",(Math.random()*120-60)+"px");
+    p.style.setProperty("--rot",(Math.random()*540-270)+"deg");
+    box.appendChild(p);
+  }
+}
+function fireworks(){
+  const box=document.getElementById("fireworks");
+  for(let k=0;k<55;k++){
+    const p=document.createElement("span"); p.className="particle";
+    p.style.left=(45+Math.random()*10)+"vw"; p.style.top=(35+Math.random()*15)+"vh";
+    const a=Math.random()*Math.PI*2, r=80+Math.random()*260;
+    p.style.setProperty("--x",Math.cos(a)*r+"px"); p.style.setProperty("--y",Math.sin(a)*r+"px");
+    p.style.animationDelay=(Math.random()*.35)+"s"; box.appendChild(p);
+    setTimeout(()=>p.remove(),1600);
+  }
+}
+function restart(){
+  clearTimeout(timer); i=0;char=0;text="";
+  document.getElementById("petalos").textContent="";
+  document.getElementById("gift").classList.add("hidden");
+  document.getElementById("boot").classList.remove("hidden");
+  progress.classList.add("hidden");fill.style.width="0%";percent.textContent="0%";
+  out.textContent="";
+  typeLine();
+}
+typeLine();
+</script>
+</body>
+</html>
